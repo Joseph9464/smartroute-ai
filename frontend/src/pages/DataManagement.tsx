@@ -8,7 +8,7 @@ const DataManagement = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await api.get('/api/datasets/');
+      const res = await api.get('/datasets/');
       setCustomers(res.data.customers || []);
     } catch (err) {
       console.error(err);

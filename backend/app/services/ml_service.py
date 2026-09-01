@@ -8,10 +8,17 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from app.schemas.prediction import PredictionRequest, TrainingMetrics, MultiModelTrainingResponse
 import time
 
-MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models")
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
-MODEL_PATH = os.path.join(MODEL_DIR, "best_model.joblib")
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+
+MODEL_DIR = Path("/tmp/models") if IS_VERCEL else BASE_DIR / "models"
+DATA_DIR = Path("/tmp/data") if IS_VERCEL else BASE_DIR / "data"
+
+MODEL_PATH = MODEL_DIR / "best_model.joblib"
+FALLBACK_MODEL_PATH = BASE_DIR / "models" / "best_model.joblib"
+OLD_FALLBACK_MODEL_PATH = BASE_DIR / "models" / "trained_model.joblib"
 TRAFFIC_MAP = {"Low": 0, "Medium": 1, "High": 2}
 WEATHER_MAP = {"Sunny": 0, "Cloudy": 1, "Rainy": 2}
 
@@ -25,9 +32,14 @@ def prepare_features(df: pd.DataFrame):
 
 def train_model() -> MultiModelTrainingResponse:
     global _cached_model
-    data_path = os.path.join(DATA_DIR, "synthetic_data.csv")
-    if not os.path.exists(data_path):
-        raise FileNotFoundError("Data file not found. Generate synthetic data first.")
+    data_path = DATA_DIR / "synthetic_data.csv"
+    
+    if not data_path.exists():
+        fallback = BASE_DIR / "data" / "synthetic_data.csv"
+        if fallback.exists():
+            data_path = fallback
+        else:
+            raise FileNotFoundError("Data file not found. Generate synthetic data first.")
         
     df = pd.read_csv(data_path)
     df = prepare_features(df)
@@ -71,8 +83,8 @@ def train_model() -> MultiModelTrainingResponse:
             best_model_name = name
             best_model = model
             
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(best_model, MODEL_PATH)
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(best_model, str(MODEL_PATH))
     _cached_model = best_model  # Update cache immediately
     
     return MultiModelTrainingResponse(models=results, best_model=best_model_name)
@@ -82,15 +94,14 @@ _cached_model = None
 def get_model():
     global _cached_model
     if _cached_model is None:
-        if not os.path.exists(MODEL_PATH):
-            # Fallback to old path if exists for backward compatibility
-            old_path = os.path.join(MODEL_DIR, "trained_model.joblib")
-            if os.path.exists(old_path):
-                _cached_model = joblib.load(old_path)
-            else:
-                raise FileNotFoundError("Model not trained yet.")
+        if MODEL_PATH.exists():
+            _cached_model = joblib.load(str(MODEL_PATH))
+        elif FALLBACK_MODEL_PATH.exists():
+            _cached_model = joblib.load(str(FALLBACK_MODEL_PATH))
+        elif OLD_FALLBACK_MODEL_PATH.exists():
+            _cached_model = joblib.load(str(OLD_FALLBACK_MODEL_PATH))
         else:
-            _cached_model = joblib.load(MODEL_PATH)
+            raise FileNotFoundError("Model not trained yet.")
     return _cached_model
 
 def predict_travel_time(req: PredictionRequest) -> float:

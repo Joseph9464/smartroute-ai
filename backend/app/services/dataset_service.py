@@ -10,7 +10,13 @@ MIN_LON, MAX_LON = -74.02, -73.93
 TRAFFIC_FACTORS = {"Low": 1.0, "Medium": 1.3, "High": 1.8}
 WEATHER_FACTORS = {"Sunny": 1.0, "Cloudy": 1.1, "Rainy": 1.3}
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+
+DATA_DIR = Path("/tmp/data") if IS_VERCEL else BASE_DIR / "data"
+FALLBACK_DATA_DIR = BASE_DIR / "data"
 
 def generate_synthetic_data(num_customers: int = 50, filename: str = "synthetic_data.csv") -> pd.DataFrame:
     """Generate synthetic dataset for customers and historical deliveries."""
@@ -71,14 +77,17 @@ def generate_synthetic_data(num_customers: int = 50, filename: str = "synthetic_
         
     df_deliveries = pd.DataFrame(deliveries)
     
-    os.makedirs(DATA_DIR, exist_ok=True)
-    df_customers.to_csv(os.path.join(DATA_DIR, "customers.csv"), index=False)
-    df_deliveries.to_csv(os.path.join(DATA_DIR, filename), index=False)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    df_customers.to_csv(str(DATA_DIR / "customers.csv"), index=False)
+    df_deliveries.to_csv(str(DATA_DIR / filename), index=False)
     
     return {"customers": df_customers, "deliveries": df_deliveries}
 
 def get_customers() -> pd.DataFrame:
-    path = os.path.join(DATA_DIR, "customers.csv")
-    if os.path.exists(path):
-        return pd.read_csv(path)
+    path = DATA_DIR / "customers.csv"
+    if path.exists():
+        return pd.read_csv(str(path))
+    fallback = FALLBACK_DATA_DIR / "customers.csv"
+    if fallback.exists():
+        return pd.read_csv(str(fallback))
     return pd.DataFrame()
