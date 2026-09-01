@@ -6,10 +6,10 @@
       "use": "@vercel/python"
     },
     {
-      "src": "package.json",
+      "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "public"
+        "distDir": "dist"
       }
     }
   ],
@@ -19,11 +19,16 @@
       "dest": "/backend/app/main.py"
     },
     {
-      "handle": "filesystem"
+      "src": "/(assets/.*)",
+      "dest": "/frontend/$1"
+    },
+    {
+      "src": "/([^/]+\\.[^/]+)",
+      "dest": "/frontend/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend/index.html"
     }
   ]
 }
