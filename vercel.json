@@ -13,22 +13,22 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/backend/app/main.py"
+      "source": "/api/(.*)",
+      "destination": "/backend/app/main.py"
     },
     {
-      "src": "/(assets/.*)",
-      "dest": "/frontend/$1"
+      "source": "/(assets/.*)",
+      "destination": "/frontend/$1"
     },
     {
-      "src": "/([^/]+\\.[^/]+)",
-      "dest": "/frontend/$1"
+      "source": "/([^/]+\\.[^/]+)",
+      "destination": "/frontend/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/index.html"
+      "source": "/(.*)",
+      "destination": "/frontend/index.html"
     }
   ]
 }
